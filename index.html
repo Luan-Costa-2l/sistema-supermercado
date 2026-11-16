@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDV Didático - Supermercado Evolutec</title>
+    <!-- Tailwind CSS para estilização moderna e responsiva -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fontes: Inter para interface e JetBrains Mono para o Cupom Fiscal e Visor -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Ícones Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos personalizados para o efeito de papel térmico do cupom fiscal */
+        .receipt-paper {
+            background-color: #fefce8;
+            background-image: radial-gradient(#e5e7eb 0.5px, transparent 0.5px);
+            background-size: 12px 12px;
+        }
+        .receipt-edge {
+            background: linear-gradient(-45deg, #1e293b 6px, transparent 0), linear-gradient(45deg, #1e293b 6px, transparent 0);
+            background-repeat: repeat-x;
+            background-position: left bottom;
+            background-size: 12px 12px;
+        }
+        /* Barra de rolagem discreta */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.4);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 0.7);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-800 font-sans min-h-screen flex flex-col select-none">
+
+    <!-- CABEÇALHO DO SISTEMA PDV -->
+    <header class="bg-slate-950 text-white border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="bg-emerald-600 p-2 rounded-lg text-white shadow-inner">
+                <i class="ph-bold ph-shopping-cart text-2xl"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="font-extrabold text-lg tracking-tight text-white">SUPERMERCADO EVOLUTEC</h1>
+                    <span class="bg-blue-600/30 text-blue-300 border border-blue-500/40 text-xs font-semibold px-2 py-0.5 rounded-full">LABORATÓRIO PDV</span>
+                </div>
+                <p class="text-xs text-slate-400">Laboratório Prático de Operação de Caixa • Operador(a): <span class="text-slate-200 font-medium">Aluno(a) Evolutec</span></p>
+            </div>
+        </div>
+
+        <!-- Controles Superiores (Novo Produto, Simular Imprevisto, Som, Guia e Fechamento) -->
+        <div class="flex flex-wrap items-center gap-2">
+            <button onclick="openNewProductModal()" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-xs font-bold shadow transition">
+                <i class="ph-bold ph-plus-circle text-base"></i>
+                <span>+ Novo Produto</span>
+            </button>
+
+            <button onclick="openIncidentModal()" id="btnTopIncident" class="flex items-center gap-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/50 px-3 py-2 rounded-lg text-xs font-bold transition relative">
+                <i class="ph-bold ph-warning-octagon text-base text-rose-400"></i>
+                <span>Simular Imprevisto</span>
+                <span id="activeIncidentDot" class="hidden w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping absolute -top-1 -right-1"></span>
+            </button>
+
+            <button onclick="toggleSound()" id="btnSound" title="Ativar/Desativar Som do Leitor" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-lg text-xs font-semibold transition border border-slate-700">
+                <i id="soundIcon" class="ph-fill ph-speaker-high text-emerald-400 text-base"></i>
+                <span class="hidden xl:inline" id="soundLabel">Som: Ligado</span>
+            </button>
+
+            <button onclick="openTeacherGuideModal()" class="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-2 rounded-lg text-xs font-semibold transition">
+                <i class="ph-bold ph-chalkboard-teacher text-base"></i>
+                <span class="hidden md:inline">Guia</span>
+            </button>
+
+            <button onclick="openShiftReportModal()" class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-lg text-xs font-bold shadow transition">
+                <i class="ph-bold ph-chart-bar text-base"></i>
+                <span>Fechamento</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- FAIXA DE ALERTA DE CENÁRIO ATIVO (Exibida quando o professor arma um imprevisto) -->
+    <div id="activeScenarioBanner" class="hidden bg-rose-950 border-b border-rose-700 text-rose-100 px-4 py-2 text-xs flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+            <span class="bg-rose-600 text-white font-extrabold px-2 py-0.5 rounded uppercase tracking-wider text-[10px]">Modo Instrutor Ativo</span>
+            <span id="activeScenarioText" class="font-medium">Próximo evento armado...</span>
+        </div>
+        <button onclick="clearArmedIncident()" class="text-rose-300 hover:text-white underline font-semibold shrink-0">Cancelar Cenário</button>
+    </div>
+
+    <!-- ÁREA PRINCIPAL DIVIDIDA -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-3 sm:p-4 max-w-[1600px] w-full mx-auto">
+
+        <!-- COLUNA ESQUERDA: VISOR DO OPERADOR, LEITOR E CATÁLOGO RÁPIDO (7 colunas no desktop) -->
+        <section class="lg:col-span-7 flex flex-col gap-4">
+
+            <!-- 1. VISOR DO OPERADOR (Display Digital) -->
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-slate-700 rounded-2xl p-4 sm:p-5 shadow-xl text-white relative overflow-hidden">
+                <div class="flex items-center justify-between border-b border-slate-700/80 pb-2 mb-3">
+                    <div class="flex items-center gap-2">
+                        <span id="statusBadge" class="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Caixa Livre / Em Venda
+                        </span>
+                        <span class="text-xs font-bold text-slate-400 hidden sm:inline">• SUPERMERCADO EVOLUTEC</span>
+                    </div>
+                    <span id="clockDisplay" class="font-mono text-xs text-slate-400">--/--/---- --:--:--</span>
+                </div>
+
+                <!-- Último Produto Bipado -->
+                <div class="mb-4">
+                    <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-1">Último Item Registrado</p>
+                    <div id="lastItemDisplay" class="font-mono text-xl sm:text-2xl font-bold text-amber-300 truncate min-h-[2rem]">
+                        AGUARDANDO PASSAGEM DE PRODUTO...
+                    </div>
+                    <div id="lastItemDetails" class="font-mono text-sm text-slate-300 mt-1 min-h-[1.25rem]">
+                        Passe o código de barras ou clique em um produto abaixo
+                    </div>
+                </div>
+
+                <!-- Resumo de Itens e Subtotal em Destaque -->
+                <div class="grid grid-cols-2 gap-3 bg-slate-950/70 rounded-xl p-3.5 border border-slate-800">
+                    <div>
+                        <span class="text-xs uppercase text-slate-400 font-semibold block">Volumes / Itens</span>
+                        <span id="totalVolumesDisplay" class="font-mono text-2xl sm:text-3xl font-bold text-white">0</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs uppercase text-emerald-400 font-bold block">Subtotal da Compra</span>
+                        <span id="subtotalDisplay" class="font-mono text-3xl sm:text-4xl font-extrabold text-emerald-400">R$ 0,00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. ENTRADA MANUAL / LEITOR DE CÓDIGO DE BARRAS -->
+            <div class="bg-white rounded-2xl p-4 shadow-md border border-slate-200">
+                <form id="barcodeForm" onsubmit="handleBarcodeSubmit(event)" class="flex flex-col sm:flex-row gap-3">
+                    <div class="w-full sm:w-28">
+                        <label for="qtyInput" class="block text-xs font-bold text-slate-600 uppercase mb-1">Qtd.</label>
+                        <input type="number" id="qtyInput" value="1" min="1" max="99" step="1"
+                            class="w-full font-mono text-lg font-bold text-center bg-slate-100 border-2 border-slate-300 focus:border-blue-600 focus:bg-white rounded-xl py-2.5 px-3 outline-none transition">
+                    </div>
+
+                    <div class="flex-1">
+                        <label for="barcodeInput" class="block text-xs font-bold text-slate-600 uppercase mb-1">
+                            Código de Barras <span class="font-normal text-slate-400">(Dica: digite <strong class="text-slate-600">3*102</strong> para 3 unidades)</span>
+                        </label>
+                        <div class="relative">
+                            <i class="ph-bold ph-barcode absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xl"></i>
+                            <input type="text" id="barcodeInput" placeholder="Ex: 101 ou 3*102" autocomplete="off" autofocus
+                                class="w-full font-mono text-lg font-bold bg-slate-100 border-2 border-slate-300 focus:border-blue-600 focus:bg-white rounded-xl py-2.5 pl-11 pr-4 outline-none transition">
+                        </div>
+                    </div>
+
+                    <div class="flex items-end">
+                        <button type="submit" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold py-3 px-6 rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                            <i class="ph-bold ph-scan text-xl"></i>
+                            <span>Bipar / Adicionar</span>
+                        </button>
+                    </div>
+                </form>
+                <!-- Mensagem de feedback inline (substitui alert) -->
+                <div id="feedbackBanner" class="hidden mt-3 px-3.5 py-2 rounded-lg text-sm font-semibold flex items-center gap-2"></div>
+            </div>
+
+            <!-- 3. CATÁLOGO RÁPIDO DE PRODUTOS (Simulação de Esteira / Gôndola) -->
+            <div class="bg-white rounded-2xl p-4 shadow-md border border-slate-200 flex-1 flex flex-col">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div>
+                        <h2 class="font-bold text-slate-800 text-base flex items-center gap-2">
+                            <i class="ph-fill ph-package text-blue-600 text-xl"></i>
+                            Catálogo Rápido (Clique para Bipar)
+                        </h2>
+                        <p class="text-xs text-slate-500">Produtos da aula • Clique em "+ Novo Produto" para cadastrar itens dos alunos</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="productCountBadge" class="text-xs font-mono bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md border border-slate-200">10 Produtos</span>
+                        <button type="button" onclick="openNewProductModal()" class="text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-md transition flex items-center gap-1">
+                            <i class="ph-bold ph-plus"></i> Novo Produto
+                        </button>
+                    </div>
+                </div>
+
+                <div id="productGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 overflow-y-auto pr-1 max-h-[300px]">
+                    <!-- Cards gerados dinamicamente via JS -->
+                </div>
+            </div>
+
+        </section>
+
+        <!-- COLUNA DIREITA: CUPOM FISCAL E BOTÕES DE OPERAÇÃO (5 colunas no desktop) -->
+        <section class="lg:col-span-5 flex flex-col gap-4">
+
+            <!-- CUPOM FISCAL (Bobina Térmica) -->
+            <div class="bg-slate-800 rounded-2xl p-3 sm:p-4 shadow-xl border border-slate-700 flex-1 flex flex-col min-h-[420px]">
+                <div class="flex items-center justify-between text-slate-300 text-xs font-semibold mb-2 px-1">
+                    <span class="flex items-center gap-1.5"><i class="ph-bold ph-receipt text-amber-400 text-base"></i> CUPOM FISCAL ELETRÔNICO (SIMULAÇÃO)</span>
+                    <span id="receiptNumber" class="font-mono text-slate-400">COO: #0001</span>
+                </div>
+
+                <!-- Papel do Cupom -->
+                <div class="receipt-paper text-slate-800 rounded-t-xl p-4 flex-1 flex flex-col shadow-inner overflow-hidden relative">
+                    <!-- Cabeçalho da Nota -->
+                    <div class="text-center border-b-2 border-dashed border-slate-400 pb-2.5 mb-2.5 font-mono text-xs">
+                        <p class="font-bold text-sm text-slate-900">SUPERMERCADO EVOLUTEC</p>
+                        <p>LABORATÓRIO PRÁTICO DE OPERAÇÃO DE CAIXA</p>
+                        <p class="text-[11px] text-slate-600 mt-0.5">CNPJ: 12.345.678/0001-99 • CUPOM DIDÁTICO</p>
+                    </div>
+
+                    <!-- Cabeçalho das Colunas -->
+                    <div class="grid grid-cols-12 font-mono text-[11px] font-bold text-slate-600 border-b border-slate-300 pb-1 mb-1">
+                        <div class="col-span-1">#</div>
+                        <div class="col-span-5">DESCRIÇÃO</div>
+                        <div class="col-span-2 text-right">QTD</div>
+                        <div class="col-span-3 text-right">TOTAL</div>
+                        <div class="col-span-1 text-center">EST.</div>
+                    </div>
+
+                    <!-- Lista de Itens Registrados -->
+                    <div id="receiptItemsContainer" class="flex-1 overflow-y-auto space-y-1.5 pr-1 font-mono text-xs">
+                        <div class="h-full flex flex-col items-center justify-center text-slate-400 py-10 text-center">
+                            <i class="ph ph-barcode text-4xl mb-2 opacity-50"></i>
+                            <p>Nenhum item registrado nesta venda.</p>
+                            <p class="text-[11px] mt-1">Bipe um produto para iniciar o cupom.</p>
+                        </div>
+                    </div>
+
+                    <!-- Rodapé do Cupom -->
+                    <div class="border-t-2 border-dashed border-slate-400 pt-2.5 mt-2 font-mono">
+                        <div class="flex justify-between items-center text-xs text-slate-600 mb-1">
+                            <span>TOTAL DE VOLUMES:</span>
+                            <span id="receiptVolumes" class="font-bold">0</span>
+                        </div>
+                        <div class="flex justify-between items-center text-base sm:text-lg font-extrabold text-slate-900">
+                            <span>TOTAL A PAGAR:</span>
+                            <span id="receiptTotal">R$ 0,00</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Borda serrilhada inferior -->
+                <div class="h-3 receipt-paper receipt-edge rounded-b-lg"></div>
+            </div>
+
+            <!-- AÇÕES DO CAIXA (Botões Grandes de Operação) -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <button onclick="openCancelItemModal()" id="btnCancelItem" disabled
+                    class="bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-3.5 px-3 rounded-xl shadow transition flex flex-col items-center justify-center gap-1 text-xs sm:text-sm">
+                    <i class="ph-bold ph-x-circle text-xl"></i>
+                    <span>Estornar Item (F4)</span>
+                </button>
+
+                <button onclick="requestNewSale()" id="btnNewSale"
+                    class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-3.5 px-3 rounded-xl shadow transition flex flex-col items-center justify-center gap-1 text-xs sm:text-sm border border-slate-600">
+                    <i class="ph-bold ph-arrow-counter-clockwise text-xl"></i>
+                    <span>Nova Venda (ESC)</span>
+                </button>
+
+                <button onclick="openPaymentModal()" id="btnCheckout" disabled
+                    class="col-span-2 sm:col-span-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-extrabold py-3.5 px-4 rounded-xl shadow-lg transition flex flex-col items-center justify-center gap-1 text-sm">
+                    <i class="ph-bold ph-currency-circle-dollar text-xl"></i>
+                    <span>Finalizar (F2)</span>
+                </button>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- BARRA INFERIOR DE ATALHOS PROFISSIONAIS -->
+    <footer class="bg-slate-950 text-slate-400 border-t border-slate-800 px-4 py-2 text-xs">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-wrap items-center gap-3 sm:gap-5">
+                <span class="font-semibold text-slate-300">Atalhos do Operador:</span>
+                <span><kbd class="bg-slate-800 text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 font-mono">ENTER</kbd> Bipar</span>
+                <span><kbd class="bg-slate-800 text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 font-mono">3*102</kbd> Multiplicar</span>
+                <span><kbd class="bg-slate-800 text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 font-mono">F2</kbd> Finalizar</span>
+                <span><kbd class="bg-slate-800 text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 font-mono">F4</kbd> Estornar</span>
+                <span><kbd class="bg-slate-800 text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 font-mono">F8</kbd> Alternar Recusa Cartão</span>
+                <span><kbd class="bg-slate-800 text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 font-mono">ESC</kbd> Limpar</span>
+            </div>
+            <div class="text-slate-500 hidden md:block">
+                Senha Fiscal: <strong class="text-amber-400 font-mono">1234</strong>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ===================================================================== -->
+    <!-- MODAIS INTERATIVOS (Pagamento, Novo Produto, Imprevistos, etc.)       -->
+    <!-- ===================================================================== -->
+
+    <!-- MODAL 1: FINALIZAÇÃO DE VENDA / PAGAMENTO -->
+    <div id="paymentModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-200 animate-fade-in">
+            <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="ph-fill ph-cash-register text-emerald-400 text-2xl"></i>
+                    <h3 class="font-bold text-lg">Finalizar Compra / Pagamento</h3>
+                </div>
+                <button onclick="closeModal('paymentModal')" class="text-slate-400 hover:text-white">
+                    <i class="ph-bold ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6">
+                <!-- Valor Total em Destaque -->
+                <div class="bg-slate-100 rounded-xl p-4 text-center border border-slate-200 mb-5">
+                    <span class="text-xs font-bold uppercase text-slate-500 block">Valor Total da Venda</span>
+                    <span id="modalTotalAmount" class="font-mono text-4xl font-extrabold text-slate-900">R$ 0,00</span>
+                </div>
+
+                <!-- Seleção de Forma de Pagamento -->
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-2">1. Selecione a Forma de Pagamento:</label>
+                <div class="grid grid-cols-2 gap-2.5 mb-5">
+                    <button type="button" onclick="selectPaymentMethod('dinheiro')" id="pay-dinheiro"
+                        class="pay-method-btn border-2 border-emerald-600 bg-emerald-50 text-emerald-800 font-bold py-3 px-4 rounded-xl flex items-center gap-2.5 transition">
+                        <i class="ph-fill ph-money text-2xl text-emerald-600"></i>
+                        <span>Dinheiro</span>
+                    </button>
+                    <button type="button" onclick="selectPaymentMethod('debito')" id="pay-debito"
+                        class="pay-method-btn border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-bold py-3 px-4 rounded-xl flex items-center gap-2.5 transition">
+                        <i class="ph-fill ph-credit-card text-2xl text-blue-600"></i>
+                        <span>Cartão Débito</span>
+                    </button>
+                    <button type="button" onclick="selectPaymentMethod('credito')" id="pay-credito"
+                        class="pay-method-btn border-2 border-slate-200 hover:border-blue-400 text-slate-700 font-bold py-3 px-4 rounded-xl flex items-center gap-2.5 transition">
+                        <i class="ph-fill ph-credit-card text-2xl text-indigo-600"></i>
+                        <span>Cartão Crédito</span>
+                    </button>
+                    <button type="button" onclick="selectPaymentMethod('pix')" id="pay-pix"
+                        class="pay-method-btn border-2 border-slate-200 hover:border-teal-400 text-slate-700 font-bold py-3 px-4 rounded-xl flex items-center gap-2.5 transition">
+                        <i class="ph-fill ph-qr-code text-2xl text-teal-600"></i>
+                        <span>PIX</span>
+                    </button>
+                </div>
+
+                <!-- Área Dinâmica: DINHEIRO (Cálculo de Troco) -->
+                <div id="cashSection" class="space-y-4">
+                    <div>
+                        <label for="cashReceivedInput" class="block text-xs font-bold uppercase text-slate-600 mb-1">2. Valor Recebido do Cliente (R$):</label>
+                        <input type="number" id="cashReceivedInput" step="0.01" min="0" placeholder="0,00" oninput="calculateChange()"
+                            class="w-full font-mono text-2xl font-bold bg-slate-50 border-2 border-slate-300 focus:border-emerald-600 rounded-xl py-3 px-4 outline-none">
+                        <!-- Cédulas Rápidas para Didática -->
+                        <div class="flex flex-wrap gap-1.5 mt-2">
+                            <span class="text-xs text-slate-500 self-center mr-1">Cédulas:</span>
+                            <button type="button" onclick="addCashNote(10)" class="text-xs font-mono font-bold bg-slate-200 hover:bg-slate-300 px-2.5 py-1 rounded">R$ 10</button>
+                            <button type="button" onclick="addCashNote(20)" class="text-xs font-mono font-bold bg-slate-200 hover:bg-slate-300 px-2.5 py-1 rounded">R$ 20</button>
+                            <button type="button" onclick="addCashNote(50)" class="text-xs font-mono font-bold bg-slate-200 hover:bg-slate-300 px-2.5 py-1 rounded">R$ 50</button>
+                            <button type="button" onclick="addCashNote(100)" class="text-xs font-mono font-bold bg-slate-200 hover:bg-slate-300 px-2.5 py-1 rounded">R$ 100</button>
+                            <button type="button" onclick="setExactCash()" class="text-xs font-semibold bg-blue-100 text-blue-700 hover:bg-blue-200 px-2.5 py-1 rounded">Valor Exato</button>
+                        </div>
+                    </div>
+
+                    <!-- Display de Troco -->
+                    <div id="changeBox" class="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex items-center justify-between">
+                        <div>
+                            <span class="text-xs font-bold uppercase text-amber-800 block">Troco a Devolver</span>
+                            <span id="changeStatusText" class="text-xs text-amber-700">Informe o valor entregue pelo cliente</span>
+                        </div>
+                        <span id="changeAmountDisplay" class="font-mono text-3xl font-extrabold text-amber-700">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- Área Dinâmica: CARTÃO / PIX -->
+                <div id="electronicSection" class="hidden space-y-3">
+                    <div class="bg-blue-50 border-2 border-blue-200 rounded-xl p-5 text-center">
+                        <i id="electronicIcon" class="ph-duotone ph-device-mobile-camera text-5xl text-blue-600 mb-2"></i>
+                        <h4 id="electronicTitle" class="font-bold text-blue-950 text-base">Pagamento via Cartão</h4>
+                        <p id="electronicDesc" class="text-sm text-blue-700 mt-1">Solicite ao cliente que insira ou aproxime o cartão na maquininha TEF.</p>
+                    </div>
+
+                    <!-- Controle Discreto do Instrutor na Maquininha (Atalho F8) -->
+                    <div class="bg-slate-100 border border-slate-300 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <span class="font-semibold text-slate-600 flex items-center gap-1">
+                            <i class="ph-bold ph-sliders text-slate-500"></i> Simulação Maquininha <kbd class="bg-white px-1.5 py-0.5 rounded border text-[10px] font-mono">F8</kbd>:
+                        </span>
+                        <div class="flex rounded-lg overflow-hidden border border-slate-300 bg-white">
+                            <button type="button" id="btnSimApprove" onclick="setCardSimulationOutcome('approve')" class="px-2.5 py-1 font-bold bg-emerald-600 text-white transition">Aprovar</button>
+                            <button type="button" id="btnSimDecline" onclick="setCardSimulationOutcome('decline_saldo')" class="px-2.5 py-1 font-semibold text-slate-600 hover:bg-rose-50 transition">Recusar (Saldo)</button>
+                            <button type="button" id="btnSimDeclinePin" onclick="setCardSimulationOutcome('decline_senha')" class="px-2.5 py-1 font-semibold text-slate-600 hover:bg-rose-50 transition border-l border-slate-200">Senha Inv.</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerta de Erro de Pagamento (Cartão Recusado / PIX Instável / Falta Troco) -->
+                <div id="paymentErrorBox" class="hidden mt-4 bg-rose-50 border-2 border-rose-500 rounded-xl p-4 text-rose-900">
+                    <div class="flex items-start gap-3">
+                        <i class="ph-fill ph-x-circle text-3xl text-rose-600 shrink-0 mt-0.5"></i>
+                        <div>
+                            <h4 id="paymentErrorTitle" class="font-extrabold text-sm uppercase text-rose-800">TRANS. NÃO AUTORIZADA - SALDO INSUFICIENTE (CÓD. 51)</h4>
+                            <p id="paymentErrorAdvice" class="text-xs text-rose-700 mt-1 leading-relaxed">
+                                <strong>Orientação ao Operador:</strong> Informe o cliente com discrição e educação. Sugira tentar outro cartão, pagar em Dinheiro/PIX ou chamar o fiscal (F4) para retirar algum item da compra.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botão Confirmar Pagamento -->
+                <div class="mt-6 flex gap-3">
+                    <button type="button" onclick="closeModal('paymentModal')" class="w-1/3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3.5 rounded-xl transition">
+                        Voltar
+                    </button>
+                    <button type="button" id="btnConfirmPayment" onclick="processPayment()"
+                        class="w-2/3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-300 disabled:text-slate-500 text-white font-extrabold py-3.5 rounded-xl shadow-lg transition flex items-center justify-center gap-2">
+                        <i class="ph-bold ph-check-circle text-xl"></i>
+                        <span>Confirmar Recebimento</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: SIMULAÇÃO DE PROCESSAMENTO MAQUININHA / PIX & COMPROVANTE CONCLUÍDO -->
+    <div id="saleSuccessModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden text-center p-6 border border-slate-200">
+            <!-- Estado: Processando -->
+            <div id="processingState" class="py-8">
+                <div class="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <h3 id="processingTitle" class="font-bold text-xl text-slate-800">Comunicando com a Maquininha...</h3>
+                <p id="processingSub" class="text-sm text-slate-500 mt-1">Aguardando senha / aprovação da operadora</p>
+            </div>
+
+            <!-- Estado: Venda Concluída -->
+            <div id="completedState" class="hidden">
+                <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="ph-bold ph-check text-4xl"></i>
+                </div>
+                <h3 class="font-extrabold text-2xl text-slate-900">Venda Concluída!</h3>
+                <p class="text-sm text-slate-500 mb-4">Cupom fiscal emitido com sucesso.</p>
+
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 text-left font-mono text-sm space-y-2 mb-5">
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Forma Pagto:</span>
+                        <span id="summaryMethod" class="font-bold text-slate-800 uppercase">DINHEIRO</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-500">Total da Compra:</span>
+                        <span id="summaryTotal" class="font-bold text-slate-900">R$ 0,00</span>
+                    </div>
+                    <div id="summaryCashRow" class="flex justify-between">
+                        <span class="text-slate-500">Valor Recebido:</span>
+                        <span id="summaryReceived" class="font-bold text-slate-800">R$ 0,00</span>
+                    </div>
+                    <div id="summaryChangeRow" class="flex justify-between border-t border-dashed border-slate-300 pt-2 text-base">
+                        <span class="font-bold text-emerald-700">TROCO ENTREGUE:</span>
+                        <span id="summaryChange" class="font-extrabold text-emerald-700">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-2.5">
+                    <button onclick="printReceiptSimulation()" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition">
+                        <i class="ph-bold ph-printer text-lg"></i>
+                        <span>Simular Impressão do Comprovante</span>
+                    </button>
+                    <button onclick="startNewSaleAfterSuccess()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 rounded-xl shadow-md flex items-center justify-center gap-2 transition">
+                        <i class="ph-bold ph-plus-circle text-lg"></i>
+                        <span>Iniciar Próximo Atendimento</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: ESTORNO / CANCELAMENTO DE ITEM (AUTORIZAÇÃO DO FISCAL) -->
+    <div id="cancelItemModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200">
+            <div class="bg-amber-600 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="ph-bold ph-shield-warning text-2xl"></i>
+                    <h3 class="font-bold text-lg">Estorno de Item (Fiscal)</h3>
+                </div>
+                <button onclick="closeModal('cancelItemModal')" class="text-amber-100 hover:text-white">
+                    <i class="ph-bold ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <form onsubmit="confirmCancelItem(event)" class="p-6 space-y-4">
+                <p class="text-sm text-slate-600">
+                    Em supermercados reais, o operador precisa da autorização do <strong>Fiscal de Caixa</strong> para cancelar um produto já bipado.
+                </p>
+
+                <div>
+                    <label for="cancelItemSelect" class="block text-xs font-bold uppercase text-slate-600 mb-1">Selecione o Item do Cupom:</label>
+                    <select id="cancelItemSelect" class="w-full font-mono text-sm bg-slate-100 border-2 border-slate-300 rounded-xl p-3 outline-none focus:border-amber-600">
+                        <!-- Preenchido via JS -->
+                    </select>
+                </div>
+
+                <div>
+                    <label for="supervisorPinInput" class="block text-xs font-bold uppercase text-slate-600 mb-1">
+                        Senha do Fiscal <span class="text-amber-600">(Padrão Didático: 1234)</span>:
+                    </label>
+                    <input type="password" id="supervisorPinInput" maxlength="6" placeholder="Digite 1234" required
+                        class="w-full font-mono text-xl tracking-widest text-center bg-slate-100 border-2 border-slate-300 rounded-xl p-2.5 outline-none focus:border-amber-600">
+                    <p id="pinErrorMsg" class="hidden text-xs text-red-600 font-bold mt-1">Senha incorreta! Solicite a senha ao professor (1234).</p>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeModal('cancelItemModal')" class="w-1/2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="w-1/2 bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 rounded-xl shadow">
+                        Autorizar Estorno
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: RELATÓRIO DO TURNO (FECHAMENTO DE CAIXA) -->
+    <div id="shiftReportModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-200">
+            <div class="bg-blue-700 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="ph-bold ph-chart-pie-slice text-2xl"></i>
+                    <div>
+                        <h3 class="font-bold text-lg">Fechamento de Caixa (Relatório Z)</h3>
+                        <p class="text-xs text-blue-200">Conferência financeira do turno do operador</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('shiftReportModal')" class="text-blue-200 hover:text-white">
+                    <i class="ph-bold ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-100 p-3.5 rounded-xl border border-slate-200">
+                        <span class="text-xs font-bold text-slate-500 uppercase block">Vendas Realizadas</span>
+                        <span id="reportSalesCount" class="font-mono text-2xl font-extrabold text-slate-800">0</span>
+                    </div>
+                    <div class="bg-slate-100 p-3.5 rounded-xl border border-slate-200">
+                        <span class="text-xs font-bold text-slate-500 uppercase block">Fundo de Troco Inicial</span>
+                        <span class="font-mono text-2xl font-extrabold text-slate-800">R$ 100,00</span>
+                    </div>
+                </div>
+
+                <!-- Tabela por Forma de Pagamento -->
+                <div class="border border-slate-200 rounded-xl overflow-hidden">
+                    <div class="bg-slate-50 px-4 py-2 border-b border-slate-200 text-xs font-bold uppercase text-slate-600">
+                        Detalhamento por Forma de Pagamento
+                    </div>
+                    <div class="divide-y divide-slate-200 font-mono text-sm">
+                        <div class="flex justify-between px-4 py-2.5">
+                            <span class="flex items-center gap-2"><i class="ph-fill ph-money text-emerald-600"></i> Dinheiro (Vendas):</span>
+                            <span id="reportCash" class="font-bold">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between px-4 py-2.5">
+                            <span class="flex items-center gap-2"><i class="ph-fill ph-credit-card text-blue-600"></i> Cartão de Débito:</span>
+                            <span id="reportDebit" class="font-bold">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between px-4 py-2.5">
+                            <span class="flex items-center gap-2"><i class="ph-fill ph-credit-card text-indigo-600"></i> Cartão de Crédito:</span>
+                            <span id="reportCredit" class="font-bold">R$ 0,00</span>
+                        </div>
+                        <div class="flex justify-between px-4 py-2.5">
+                            <span class="flex items-center gap-2"><i class="ph-fill ph-qr-code text-teal-600"></i> PIX:</span>
+                            <span id="reportPix" class="font-bold">R$ 0,00</span>
+                        </div>
+                    </div>
+                    <div class="bg-emerald-50 px-4 py-3 border-t border-emerald-200 flex justify-between items-center font-mono">
+                        <span class="font-bold text-emerald-900 text-sm">TOTAL GERAL VENDIDO:</span>
+                        <span id="reportGrandTotal" class="font-extrabold text-xl text-emerald-700">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900">
+                    <strong>Dica Pedagógica:</strong> Ao final do turno, o dinheiro físico na gaveta deve ser igual ao <em>Fundo de Troco (R$ 100,00) + Vendas em Dinheiro</em> (<strong id="reportExpectedDrawer" class="font-mono">R$ 100,00</strong>).
+                </div>
+
+                <div class="flex justify-between gap-3 pt-2">
+                    <button onclick="resetShiftReport()" class="text-xs font-bold text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition">
+                        Zerar Turno
+                    </button>
+                    <button onclick="closeModal('shiftReportModal')" class="bg-blue-700 hover:bg-blue-600 text-white font-bold px-6 py-2.5 rounded-xl">
+                        Fechar Relatório
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 5: GUIA RÁPIDO DO PROFESSOR -->
+    <div id="teacherGuideModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden border border-slate-200">
+            <div class="bg-amber-500 text-slate-950 px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="ph-bold ph-chalkboard-teacher text-2xl"></i>
+                    <h3 class="font-extrabold text-lg">Roteiro Didático - Supermercado Evolutec</h3>
+                </div>
+                <button onclick="closeModal('teacherGuideModal')" class="text-slate-900 hover:text-black">
+                    <i class="ph-bold ph-x text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-3 text-sm text-slate-700 max-h-[75vh] overflow-y-auto">
+                <p>Este simulador foi estruturado para treinar habilidades reais de atendimento e operação de PDV:</p>
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+                    <p><strong>1. Produtos Trazidos pelos Alunos:</strong> Clique em <strong>+ Novo Produto</strong> para cadastrar embalagens reais trazidas pela turma (você pode digitar o código de barras da embalagem ou gerar um código sequencial).</p>
+                    <p><strong>2. Simulação de Imprevistos:</strong> Use o botão <strong>Simular Imprevisto</strong> no topo (ou aperte <kbd class="bg-slate-200 px-1 rounded">F8</kbd> na tela de pagamento) para testar como o aluno reage a <em>Cartão Recusado</em>, <em>Divergência de Preço na Gôndola</em>, <em>Código Não Cadastrado</em>, <em>Falta de Troco</em> ou <em>Queda do PIX</em>.</p>
+                    <p><strong>3. Autorização do Fiscal (Senha 1234):</strong> Estornos (<kbd class="bg-slate-200 px-1 rounded">F4</kbd>) e descontos por divergência de preço exigem a senha <strong class="text-amber-700 font-mono">1234</strong>.</p>
+                    <p><strong>4. Fechamento de Caixa:</strong> Ao final da prática, abra o <strong>Fechamento</strong> para conferir o dinheiro físico da gaveta (Fundo de Troco R$ 100,00 + Vendas em Dinheiro) e os comprovantes eletrônicos.</p>
+                </div>
+                <div class="text-right pt-2">
+                    <button onclick="closeModal('teacherGuideModal')" class="bg-slate-900 text-white font-bold px-6 py-2.5 rounded-xl">Entendi, começar aula!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 6: CADASTRAR NOVO PRODUTO (ITENS TRAZIDOS PELOS ALUNOS) -->
+    <div id="newProductModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200">
+            <div class="bg-emerald-700 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="ph-bold ph-package text-2xl"></i>
+                    <div>
+                        <h3 class="font-bold text-lg">Cadastrar Novo Produto</h3>
+                        <p class="text-xs text-emerald-100">Adicione produtos trazidos pelos alunos para a aula</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('newProductModal')" class="text-emerald-100 hover:text-white">
+                    <i class="ph-bold ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <form onsubmit="saveNewProduct(event)" class="p-6 space-y-4">
+                <div>
+                    <label for="newProdCode" class="block text-xs font-bold uppercase text-slate-600 mb-1">Código de Barras / SKU:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="newProdCode" required placeholder="Ex: 111 ou código da embalagem"
+                            class="flex-1 font-mono text-sm font-bold bg-slate-100 border-2 border-slate-300 rounded-xl px-3 py-2.5 outline-none focus:border-emerald-600">
+                        <button type="button" onclick="generateNextProductCode()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-3 rounded-xl transition shrink-0">
+                            Gerar Código
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="newProdName" class="block text-xs font-bold uppercase text-slate-600 mb-1">Nome do Produto:</label>
+                    <input type="text" id="newProdName" required maxlength="36" placeholder="Ex: Biscoito Recheado 140g"
+                        class="w-full text-sm font-semibold bg-slate-100 border-2 border-slate-300 rounded-xl px-3 py-2.5 outline-none focus:border-emerald-600">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label for="newProdPrice" class="block text-xs font-bold uppercase text-slate-600 mb-1">Preço Unitário (R$):</label>
+                        <input type="number" id="newProdPrice" step="0.01" min="0.05" required placeholder="4.50"
+                            class="w-full font-mono text-base font-bold bg-slate-100 border-2 border-slate-300 rounded-xl px-3 py-2 outline-none focus:border-emerald-600">
+                    </div>
+                    <div>
+                        <label for="newProdCategory" class="block text-xs font-bold uppercase text-slate-600 mb-1">Categoria:</label>
+                        <select id="newProdCategory" class="w-full text-sm font-semibold bg-slate-100 border-2 border-slate-300 rounded-xl px-2.5 py-2.5 outline-none focus:border-emerald-600">
+                            <option value="Mercearia">Mercearia</option>
+                            <option value="Hortifruti/Padaria">Hortifruti/Padaria</option>
+                            <option value="Frios/Bebidas">Frios/Bebidas</option>
+                            <option value="Limpeza/Higiene">Limpeza/Higiene</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-600 mb-1.5">Escolha um Ícone:</label>
+                    <input type="hidden" id="newProdIcon" value="📦">
+                    <div id="emojiPicker" class="grid grid-cols-8 gap-1.5">
+                        <!-- Gerado via JS -->
+                    </div>
+                </div>
+
+                <p id="newProdError" class="hidden text-xs text-red-600 font-bold"></p>
+
+                <div class="flex items-center justify-between pt-2 border-t border-slate-200">
+                    <button type="button" onclick="restoreDefaultCatalog()" class="text-xs font-semibold text-slate-500 hover:text-red-600 underline">
+                        Restaurar Padrão
+                    </button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeModal('newProductModal')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-4 py-2.5 rounded-xl text-sm">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-5 py-2.5 rounded-xl shadow text-sm">
+                            Salvar Produto
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 7: SIMULADOR DE IMPREVISTOS DO DIA A DIA (PAINEL DO INSTRUTOR) -->
+    <div id="incidentModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden border border-slate-200">
+            <div class="bg-rose-700 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="ph-bold ph-warning-octagon text-2xl"></i>
+                    <div>
+                        <h3 class="font-bold text-lg">Simulador de Erros e Imprevistos</h3>
+                        <p class="text-xs text-rose-200">Selecione uma situação real para desafiar o operador em treinamento</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('incidentModal')" class="text-rose-200 hover:text-white">
+                    <i class="ph-bold ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-3 max-h-[75vh] overflow-y-auto">
+                <button type="button" onclick="armIncident('card_declined')" class="w-full text-left p-3.5 rounded-xl border-2 border-slate-200 hover:border-rose-500 hover:bg-rose-50 transition flex items-start gap-3">
+                    <div class="bg-rose-100 text-rose-700 p-2 rounded-lg shrink-0"><i class="ph-bold ph-credit-card text-xl"></i></div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-sm">1. Cartão Recusado (Saldo Insuficiente / Senha Inválida)</h4>
+                        <p class="text-xs text-slate-600 mt-0.5">Na próxima tentativa de pagamento com cartão, a maquininha negará a transação. O aluno deverá negociar outra forma de pagamento ou estornar itens.</p>
+                    </div>
+                </button>
+
+                <button type="button" onclick="armIncident('barcode_error')" class="w-full text-left p-3.5 rounded-xl border-2 border-slate-200 hover:border-amber-500 hover:bg-amber-50 transition flex items-start gap-3">
+                    <div class="bg-amber-100 text-amber-700 p-2 rounded-lg shrink-0"><i class="ph-bold ph-barcode text-xl"></i></div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-sm">2. Código de Barras Não Cadastrado / Danificado</h4>
+                        <p class="text-xs text-slate-600 mt-0.5">Ao bipar o próximo produto, o sistema acusará falha de cadastro/leitura, exigindo consulta ao repositor ou digitação manual.</p>
+                    </div>
+                </button>
+
+                <button type="button" onclick="triggerShelfPriceDiscrepancy()" class="w-full text-left p-3.5 rounded-xl border-2 border-slate-200 hover:border-blue-500 hover:bg-blue-50 transition flex items-start gap-3">
+                    <div class="bg-blue-100 text-blue-700 p-2 rounded-lg shrink-0"><i class="ph-bold ph-tag text-xl"></i></div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-sm">3. Divergência de Preço na Gôndola (Ação Imediata)</h4>
+                        <p class="text-xs text-slate-600 mt-0.5">Cliente alega que o preço na prateleira era menor. Abre o procedimento de autorização do Fiscal (senha 1234) para conceder desconto no item.</p>
+                    </div>
+                </button>
+
+                <button type="button" onclick="armIncident('low_change')" class="w-full text-left p-3.5 rounded-xl border-2 border-slate-200 hover:border-emerald-500 hover:bg-emerald-50 transition flex items-start gap-3">
+                    <div class="bg-emerald-100 text-emerald-700 p-2 rounded-lg shrink-0"><i class="ph-bold ph-money text-xl"></i></div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-sm">4. Falta de Troco na Gaveta (Nota Alta)</h4>
+                        <p class="text-xs text-slate-600 mt-0.5">Quando o cliente pagar com nota de R$ 100 ou R$ 200, o caixa alertará falta de cédulas trocadas, exigindo troca com o Fiscal.</p>
+                    </div>
+                </button>
+
+                <button type="button" onclick="armIncident('pix_down')" class="w-full text-left p-3.5 rounded-xl border-2 border-slate-200 hover:border-teal-500 hover:bg-teal-50 transition flex items-start gap-3">
+                    <div class="bg-teal-100 text-teal-700 p-2 rounded-lg shrink-0"><i class="ph-bold ph-wifi-slash text-xl"></i></div>
+                    <div>
+                        <h4 class="font-bold text-slate-900 text-sm">5. Queda Temporária do Sistema PIX / Sem Sinal</h4>
+                        <p class="text-xs text-slate-600 mt-0.5">Ao tentar receber via PIX, exibe falha de comunicação bancária, exigindo alternativa de pagamento ao cliente.</p>
+                    </div>
+                </button>
+
+                <div class="flex justify-between items-center pt-3 border-t border-slate-200">
+                    <button type="button" onclick="clearArmedIncident(); closeModal('incidentModal');" class="text-xs font-bold text-slate-500 hover:text-slate-800">
+                        Desativar Cenários Pendentes
+                    </button>
+                    <button type="button" onclick="closeModal('incidentModal')" class="bg-slate-900 text-white font-bold px-5 py-2.5 rounded-xl text-sm">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 8: AJUSTE DE PREÇO NA GÔNDOLA (AUTORIZAÇÃO DO FISCAL) -->
+    <div id="priceAdjustModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200">
+            <div class="bg-blue-700 text-white px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="ph-bold ph-tag text-2xl"></i>
+                    <h3 class="font-bold text-lg">Divergência de Preço na Gôndola</h3>
+                </div>
+                <button onclick="closeModal('priceAdjustModal')" class="text-blue-200 hover:text-white">
+                    <i class="ph-bold ph-x text-xl"></i>
+                </button>
+            </div>
+
+            <form onsubmit="confirmPriceAdjustment(event)" class="p-6 space-y-4">
+                <div class="bg-amber-50 border border-amber-300 rounded-xl p-3 text-xs text-amber-950">
+                    <strong>Situação:</strong> O cliente informou que na etiqueta da gôndola o produto estava com preço promocional menor (Lei do Preço Mais Baixo). Chame o Fiscal para validar e liberar o desconto.
+                </div>
+
+                <div>
+                    <label for="adjustItemSelect" class="block text-xs font-bold uppercase text-slate-600 mb-1">Produto com Divergência:</label>
+                    <select id="adjustItemSelect" class="w-full font-mono text-sm bg-slate-100 border-2 border-slate-300 rounded-xl p-3 outline-none focus:border-blue-600"></select>
+                </div>
+
+                <div>
+                    <label for="adjustDiscountInput" class="block text-xs font-bold uppercase text-slate-600 mb-1">Valor do Desconto a Conceder (R$):</label>
+                    <input type="number" id="adjustDiscountInput" step="0.01" min="0.10" value="2.00" required
+                        class="w-full font-mono text-lg font-bold bg-slate-100 border-2 border-slate-300 rounded-xl p-2.5 outline-none focus:border-blue-600">
+                </div>
+
+                <div>
+                    <label for="adjustPinInput" class="block text-xs font-bold uppercase text-slate-600 mb-1">Senha do Fiscal (1234):</label>
+                    <input type="password" id="adjustPinInput" maxlength="6" placeholder="Digite 1234" required
+                        class="w-full font-mono text-xl tracking-widest text-center bg-slate-100 border-2 border-slate-300 rounded-xl p-2.5 outline-none focus:border-blue-600">
+                    <p id="adjustPinError" class="hidden text-xs text-red-600 font-bold mt-1">Senha incorreta! Solicite ao professor (1234).</p>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeModal('priceAdjustModal')" class="w-1/2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="w-1/2 bg-blue-700 hover:bg-blue-600 text-white font-bold py-3 rounded-xl shadow">
+                        Liberar Desconto
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- LÓGICA DO SISTEMA PDV (JAVASCRIPT)                                    -->
+    <!-- ===================================================================== -->
+    <script>
+        // 1. CATÁLOGO PADRÃO DE PRODUTOS DO SUPERMERCADO EVOLUTEC
+        const DEFAULT_PRODUCTS = [
+            { code: '101', name: 'Arroz Branco 5kg', price: 24.90, category: 'Mercearia', icon: '🌾' },
+            { code: '102', name: 'Feijão Carioca 1kg', price: 8.50, category: 'Mercearia', icon: '🫘' },
+            { code: '103', name: 'Leite Integral 1L', price: 5.20, category: 'Frios/Bebidas', icon: '🥛' },
+            { code: '104', name: 'Café Torrado 500g', price: 18.90, category: 'Mercearia', icon: '☕' },
+            { code: '105', name: 'Açúcar Refinado 1kg', price: 4.80, category: 'Mercearia', icon: '🧂' },
+            { code: '106', name: 'Óleo de Soja 900ml', price: 6.90, category: 'Mercearia', icon: '🌻' },
+            { code: '107', name: 'Pão de Forma Trad.', price: 7.50, category: 'Hortifruti/Padaria', icon: '🍞' },
+            { code: '108', name: 'Sabão em Pó 1kg', price: 14.90, category: 'Limpeza/Higiene', icon: '🧼' },
+            { code: '109', name: 'Banana Prata (kg)', price: 5.99, category: 'Hortifruti/Padaria', icon: '🍌' },
+            { code: '110', name: 'Refrigerante Cola 2L', price: 9.50, category: 'Frios/Bebidas', icon: '🥤' }
+        ];
+
+        const EMOJI_OPTIONS = ['📦', '🍪', '🧃', '🧼', '🍎', '🍫', '🥫', '🧴', '🧀', '🥩', '🍝', '🧻', '🍦', '🥚', '🍋', '🧹'];
+        const STORAGE_KEY_PRODUCTS = 'evolutec_pdv_products_v1';
+
+        const SUPERVISOR_PIN = '1234';
+        const INITIAL_DRAWER_FLOAT = 100.00;
+
+        // 2. ESTADO DA APLICAÇÃO
+        let products = loadProductsFromStorage();
+        let currentCart = [];
+        let saleCounter = 1;
+        let selectedPayment = 'dinheiro';
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        // Estado do Simulador de Imprevistos
+        let armedIncident = null; // 'card_declined' | 'barcode_error' | 'low_change' | 'pix_down'
+        let cardSimOutcome = 'approve'; // 'approve' | 'decline_saldo' | 'decline_senha'
+
+        // Acumulador do Turno (Fechamento de Caixa)
+        let shiftStats = {
+            salesCount: 0,
+            dinheiro: 0,
+            debito: 0,
+            credito: 0,
+            pix: 0
+        };
+
+        function loadProductsFromStorage() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY_PRODUCTS);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                }
+            } catch (e) {
+                console.warn('Erro ao ler produtos salvos:', e);
+            }
+            return [...DEFAULT_PRODUCTS];
+        }
+
+        function saveProductsToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+            } catch (e) {
+                console.warn('Erro ao salvar produtos:', e);
+            }
+        }
+
+        // 3. INICIALIZAÇÃO
+        window.onload = function() {
+            renderEmojiPicker();
+            renderProductCatalog();
+            updateClock();
+            setInterval(updateClock, 1000);
+            focusBarcodeInput();
+        };
+
+        // Relógio em tempo real no visor
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clockDisplay').textContent = now.toLocaleString('pt-BR');
+        }
+
+        // Formatação de Moeda BRL
+        function formatBRL(value) {
+            return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        }
+
+        // 4. EFEITO SONORO DE BIP DE LEITOR ÓPTICO (Web Audio API - sem arquivos externos)
+        function playBeep(type = 'success') {
+            if (!soundEnabled) return;
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'success') {
+                    // Bip agudo clássico de scanner de supermercado (~2400Hz)
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(2400, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.11);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.11);
+                } else if (type === 'error') {
+                    // Som grave duplo de erro de leitura
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.25);
+                } else if (type === 'cash') {
+                    // Som agradável de conclusão de venda
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(1600, audioCtx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.25);
+                }
+            } catch (e) {
+                console.warn('Áudio não suportado neste navegador:', e);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('soundIcon');
+            const label = document.getElementById('soundLabel');
+            if (soundEnabled) {
+                icon.className = 'ph-fill ph-speaker-high text-emerald-400 text-base';
+                label.textContent = 'Som: Ligado';
+                playBeep('success');
+            } else {
+                icon.className = 'ph-fill ph-speaker-slash text-slate-400 text-base';
+                label.textContent = 'Som: Mudo';
+            }
+        }
+
+        // 5. RENDERIZAÇÃO DO CATÁLOGO RÁPIDO
+        function renderProductCatalog() {
+            const grid = document.getElementById('productGrid');
+            document.getElementById('productCountBadge').textContent = `${products.length} Produtos`;
+
+            grid.innerHTML = products.map(prod => `
+                <button type="button" onclick="quickScan('${prod.code}')"
+                    class="group relative bg-slate-50 hover:bg-blue-50 active:scale-[0.97] border ${prod.isNew ? 'border-emerald-400 bg-emerald-50/30' : 'border-slate-200'} hover:border-blue-400 rounded-xl p-2.5 text-left transition flex flex-col justify-between shadow-sm">
+                    ${prod.isNew ? '<span class="absolute -top-2 right-2 bg-emerald-600 text-white text-[9px] font-extrabold px-1.5 py-0.5 rounded shadow">NOVO</span>' : ''}
+                    <div class="flex items-center justify-between w-full mb-1">
+                        <span class="font-mono text-xs font-bold bg-slate-800 text-white px-2 py-0.5 rounded truncate max-w-[72%]">${prod.code}</span>
+                        <span class="text-xl">${prod.icon}</span>
+                    </div>
+                    <p class="font-semibold text-xs text-slate-800 group-hover:text-blue-900 line-clamp-2 leading-snug my-1">${prod.name}</p>
+                    <p class="font-mono text-sm font-extrabold text-emerald-700">${formatBRL(prod.price)}</p>
+                </button>
+            `).join('');
+        }
+
+        // Cadastro de Novos Produtos (Alunos)
+        function renderEmojiPicker() {
+            const container = document.getElementById('emojiPicker');
+            container.innerHTML = EMOJI_OPTIONS.map((emoji, idx) => `
+                <button type="button" onclick="selectProductEmoji('${emoji}', this)"
+                    class="emoji-btn text-xl p-1.5 rounded-lg border ${idx === 0 ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 hover:bg-slate-100'} transition">
+                    ${emoji}
+                </button>
+            `).join('');
+        }
+
+        function selectProductEmoji(emoji, btnEl) {
+            document.getElementById('newProdIcon').value = emoji;
+            document.querySelectorAll('.emoji-btn').forEach(b => {
+                b.classList.remove('border-emerald-600', 'bg-emerald-50');
+                b.classList.add('border-slate-200');
+            });
+            btnEl.classList.remove('border-slate-200');
+            btnEl.classList.add('border-emerald-600', 'bg-emerald-50');
+        }
+
+        function generateNextProductCode() {
+            const numericCodes = products
+                .map(p => parseInt(p.code, 10))
+                .filter(n => !isNaN(n) && n < 99999);
+            const nextCode = numericCodes.length > 0 ? Math.max(...numericCodes) + 1 : 111;
+            document.getElementById('newProdCode').value = String(nextCode);
+        }
+
+        function openNewProductModal() {
+            document.getElementById('newProdName').value = '';
+            document.getElementById('newProdPrice').value = '';
+            document.getElementById('newProdError').classList.add('hidden');
+            generateNextProductCode();
+            openModal('newProductModal');
+            setTimeout(() => document.getElementById('newProdName').focus(), 100);
+        }
+
+        function saveNewProduct(event) {
+            event.preventDefault();
+            const code = document.getElementById('newProdCode').value.trim();
+            const name = document.getElementById('newProdName').value.trim();
+            const price = parseFloat(document.getElementById('newProdPrice').value);
+            const category = document.getElementById('newProdCategory').value;
+            const icon = document.getElementById('newProdIcon').value || '📦';
+            const errorEl = document.getElementById('newProdError');
+
+            if (!code || !name || isNaN(price) || price <= 0) {
+                errorEl.textContent = 'Preencha corretamente o código, nome e preço maior que zero.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            if (products.some(p => p.code.toLowerCase() === code.toLowerCase())) {
+                errorEl.textContent = `O código "${code}" já existe no catálogo! Use outro código.`;
+                errorEl.classList.remove('hidden');
+                playBeep('error');
+                return;
+            }
+
+            const newProduct = { code, name, price, category, icon, isNew: true };
+            products.unshift(newProduct);
+            saveProductsToStorage();
+            renderProductCatalog();
+            playBeep('success');
+            closeModal('newProductModal');
+            showFeedback(`Produto "${name}" (Cód: ${code}) adicionado ao catálogo da aula!`, 'info');
+        }
+
+        function restoreDefaultCatalog() {
+            products = [...DEFAULT_PRODUCTS];
+            saveProductsToStorage();
+            renderProductCatalog();
+            closeModal('newProductModal');
+            showFeedback('Catálogo restaurado para os 10 produtos padrão da escola.', 'info');
+        }
+
+        // Clique rápido em um card do catálogo
+        function quickScan(code) {
+            const qtyInput = document.getElementById('qtyInput');
+            const qty = Math.max(1, parseInt(qtyInput.value) || 1);
+            addItemToSale(code, qty);
+            qtyInput.value = 1;
+            focusBarcodeInput();
+        }
+
+        // 6. PROCESSAMENTO DO FORMULÁRIO DE CÓDIGO DE BARRAS (Suporta 3*102)
+        function handleBarcodeSubmit(event) {
+            event.preventDefault();
+            const rawInput = document.getElementById('barcodeInput').value.trim();
+            const qtyField = document.getElementById('qtyInput');
+            let qty = Math.max(1, parseInt(qtyField.value) || 1);
+            let code = rawInput;
+
+            if (!rawInput) {
+                showFeedback('Digite ou clique em um código de produto para bipar.', 'warning');
+                return;
+            }
+
+            // Verifica sintaxe de multiplicação do operador (Ex: 3*102 ou 3x102)
+            if (rawInput.includes('*') || rawInput.toLowerCase().includes('x')) {
+                const parts = rawInput.split(/[*xX]/);
+                if (parts.length === 2 && !isNaN(parts[0]) && parts[1].trim() !== '') {
+                    qty = Math.max(1, parseInt(parts[0].trim()));
+                    code = parts[1].trim();
+                }
+            }
+
+            addItemToSale(code, qty);
+            document.getElementById('barcodeInput').value = '';
+            qtyField.value = 1;
+            focusBarcodeInput();
+        }
+
+        // Adiciona produto ao carrinho/cupom
+        function addItemToSale(code, quantity) {
+            // Verifica se o instrutor armou o imprevisto de "Código Não Cadastrado / Danificado"
+            if (armedIncident === 'barcode_error') {
+                clearArmedIncident();
+                playBeep('error');
+                showFeedback(`ERRO DE LEITURA / NÃO CADASTRADO (Cód: ${code}) — Chame o Fiscal ou Repositor para verificar o preço na gôndola!`, 'error');
+                return;
+            }
+
+            const product = products.find(p => p.code.toLowerCase() === code.toLowerCase());
+
+            if (!product) {
+                playBeep('error');
+                showFeedback(`Código "${code}" não encontrado! Verifique a etiqueta ou cadastre em "+ Novo Produto".`, 'error');
+                return;
+            }
+
+            const totalItemPrice = product.price * quantity;
+            const entry = {
+                id: Date.now() + Math.random(),
+                code: product.code,
+                name: product.name,
+                unitPrice: product.price,
+                quantity: quantity,
+                total: totalItemPrice
+            };
+
+            currentCart.push(entry);
+            playBeep('success');
+            hideFeedback();
+            updateUI(entry);
+        }
+
+        // 7. ATUALIZAÇÃO DO VISOR E DO CUPOM FISCAL
+        function updateUI(lastEntry = null) {
+            const subtotal = currentCart.reduce((acc, item) => acc + item.total, 0);
+            const totalVolumes = currentCart.reduce((acc, item) => acc + item.quantity, 0);
+
+            // Atualiza Visor do Operador
+            const lastItemEl = document.getElementById('lastItemDisplay');
+            const lastDetailsEl = document.getElementById('lastItemDetails');
+            const statusBadge = document.getElementById('statusBadge');
+
+            if (currentCart.length === 0) {
+                lastItemEl.textContent = 'AGUARDANDO PASSAGEM DE PRODUTO...';
+                lastDetailsEl.textContent = 'Passe o código de barras ou clique em um produto abaixo';
+                statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Caixa Livre`;
+            } else {
+                statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> Venda em Andamento`;
+                if (lastEntry) {
+                    lastItemEl.textContent = `${lastEntry.code} - ${lastEntry.name.toUpperCase()}`;
+                    lastDetailsEl.textContent = `${lastEntry.quantity} UN x ${formatBRL(lastEntry.unitPrice)} = ${formatBRL(lastEntry.total)}`;
+                }
+            }
+
+            document.getElementById('totalVolumesDisplay').textContent = totalVolumes;
+            document.getElementById('subtotalDisplay').textContent = formatBRL(subtotal);
+
+            // Atualiza Cupom Fiscal
+            const receiptContainer = document.getElementById('receiptItemsContainer');
+            if (currentCart.length === 0) {
+                receiptContainer.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-slate-400 py-10 text-center">
+                        <i class="ph ph-barcode text-4xl mb-2 opacity-50"></i>
+                        <p>Nenhum item registrado nesta venda.</p>
+                        <p class="text-[11px] mt-1">Bipe um produto para iniciar o cupom.</p>
+                    </div>
+                `;
+            } else {
+                receiptContainer.innerHTML = currentCart.map((item, index) => `
+                    <div class="grid grid-cols-12 items-center py-1 border-b border-dotted border-slate-300 hover:bg-amber-100/70 rounded px-0.5 transition">
+                        <div class="col-span-1 text-slate-500">${String(index + 1).padStart(2, '0')}</div>
+                        <div class="col-span-5 pr-1">
+                            <p class="font-bold text-slate-900 truncate">${item.name}</p>
+                            <p class="text-[10px] text-slate-500">Cód:${item.code} (${formatBRL(item.unitPrice)})</p>
+                        </div>
+                        <div class="col-span-2 text-right font-semibold">${item.quantity}x</div>
+                        <div class="col-span-3 text-right font-bold text-slate-900">${formatBRL(item.total)}</div>
+                        <div class="col-span-1 text-center">
+                            <button type="button" onclick="openCancelItemModal('${item.id}')" title="Estornar este item (Requer senha do fiscal)"
+                                class="text-red-600 hover:text-red-800 hover:bg-red-100 p-1 rounded transition">
+                                <i class="ph-bold ph-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                // Rola automaticamente para o último item bipado
+                receiptContainer.scrollTop = receiptContainer.scrollHeight;
+            }
+
+            document.getElementById('receiptVolumes').textContent = totalVolumes;
+            document.getElementById('receiptTotal').textContent = formatBRL(subtotal);
+            document.getElementById('receiptNumber').textContent = `COO: #${String(saleCounter).padStart(4, '0')}`;
+
+            // Habilita / Desabilita botões de ação
+            const hasItems = currentCart.length > 0;
+            document.getElementById('btnCheckout').disabled = !hasItems;
+            document.getElementById('btnCancelItem').disabled = !hasItems;
+        }
+
+        // 8. ESTORNO DE ITEM COM SENHA DO FISCAL
+        function openCancelItemModal(preselectedId = null) {
+            if (currentCart.length === 0) return;
+
+            const select = document.getElementById('cancelItemSelect');
+            select.innerHTML = currentCart.map((item, idx) => `
+                <option value="${item.id}" ${item.id == preselectedId ? 'selected' : ''}>
+                    Item #${idx + 1} - ${item.name} (${item.quantity}x) - ${formatBRL(item.total)}
+                </option>
+            `).join('');
+
+            document.getElementById('supervisorPinInput').value = '';
+            document.getElementById('pinErrorMsg').classList.add('hidden');
+            openModal('cancelItemModal');
+            setTimeout(() => document.getElementById('supervisorPinInput').focus(), 100);
+        }
+
+        function confirmCancelItem(event) {
+            event.preventDefault();
+            const pin = document.getElementById('supervisorPinInput').value.trim();
+            const itemId = document.getElementById('cancelItemSelect').value;
+
+            if (pin !== SUPERVISOR_PIN) {
+                playBeep('error');
+                document.getElementById('pinErrorMsg').classList.remove('hidden');
+                return;
+            }
+
+            const index = currentCart.findIndex(i => i.id == itemId);
+            if (index !== -1) {
+                const removed = currentCart.splice(index, 1)[0];
+                playBeep('success');
+                closeModal('cancelItemModal');
+                showFeedback(`Item estornado pelo Fiscal: ${removed.name} (${formatBRL(removed.total)})`, 'info');
+                updateUI(currentCart[currentCart.length - 1] || null);
+                focusBarcodeInput();
+            }
+        }
+
+        // 9. FINALIZAÇÃO DE VENDA E PAGAMENTO
+        function openPaymentModal() {
+            if (currentCart.length === 0) return;
+
+            const total = currentCart.reduce((acc, item) => acc + item.total, 0);
+            document.getElementById('modalTotalAmount').textContent = formatBRL(total);
+            document.getElementById('cashReceivedInput').value = '';
+            document.getElementById('paymentErrorBox').classList.add('hidden');
+
+            // Se o instrutor armou "Cartão Recusado", pré-seleciona a recusa na maquininha
+            if (armedIncident === 'card_declined') {
+                setCardSimulationOutcome('decline_saldo');
+            } else {
+                setCardSimulationOutcome('approve');
+            }
+
+            selectPaymentMethod('dinheiro');
+            openModal('paymentModal');
+            setTimeout(() => document.getElementById('cashReceivedInput').focus(), 100);
+        }
+
+        function setCardSimulationOutcome(outcome) {
+            cardSimOutcome = outcome;
+            const btnApprove = document.getElementById('btnSimApprove');
+            const btnDecline = document.getElementById('btnSimDecline');
+            const btnPin = document.getElementById('btnSimDeclinePin');
+
+            [btnApprove, btnDecline, btnPin].forEach(b => {
+                b.className = 'px-2.5 py-1 font-semibold text-slate-600 hover:bg-slate-200 transition';
+            });
+
+            if (outcome === 'approve') {
+                btnApprove.className = 'px-2.5 py-1 font-bold bg-emerald-600 text-white transition';
+            } else if (outcome === 'decline_saldo') {
+                btnDecline.className = 'px-2.5 py-1 font-bold bg-rose-600 text-white transition';
+            } else {
+                btnPin.className = 'px-2.5 py-1 font-bold bg-rose-600 text-white transition';
+            }
+        }
+
+        function selectPaymentMethod(method) {
+            selectedPayment = method;
+            document.getElementById('paymentErrorBox').classList.add('hidden');
+
+            // Atualiza estilo visual dos botões de pagamento
+            document.querySelectorAll('.pay-method-btn').forEach(btn => {
+                btn.classList.remove('border-emerald-600', 'bg-emerald-50', 'text-emerald-800', 'border-blue-600', 'bg-blue-50', 'text-blue-800');
+                btn.classList.add('border-slate-200', 'text-slate-700');
+            });
+
+            const activeBtn = document.getElementById(`pay-${method}`);
+            activeBtn.classList.remove('border-slate-200', 'text-slate-700');
+            activeBtn.classList.add('border-blue-600', 'bg-blue-50', 'text-blue-900');
+
+            const cashSection = document.getElementById('cashSection');
+            const elecSection = document.getElementById('electronicSection');
+            const btnConfirm = document.getElementById('btnConfirmPayment');
+
+            if (method === 'dinheiro') {
+                cashSection.classList.remove('hidden');
+                elecSection.classList.add('hidden');
+                calculateChange();
+            } else {
+                cashSection.classList.add('hidden');
+                elecSection.classList.remove('hidden');
+                btnConfirm.disabled = false;
+
+                const icon = document.getElementById('electronicIcon');
+                const title = document.getElementById('electronicTitle');
+                const desc = document.getElementById('electronicDesc');
+
+                if (method === 'pix') {
+                    icon.className = 'ph-duotone ph-qr-code text-5xl text-teal-600 mb-2';
+                    title.textContent = 'Pagamento Instantâneo via PIX';
+                    desc.textContent = 'QR Code gerado no visor do cliente. Aguardando confirmação bancária...';
+                } else {
+                    icon.className = 'ph-duotone ph-credit-card text-5xl text-blue-600 mb-2';
+                    title.textContent = `Cartão de ${method === 'debito' ? 'Débito' : 'Crédito'}`;
+                    desc.textContent = 'Peça ao cliente para inserir ou aproximar o cartão na maquininha.';
+                }
+            }
+        }
+
+        // Helpers para cédulas de dinheiro
+        function addCashNote(value) {
+            const input = document.getElementById('cashReceivedInput');
+            const current = parseFloat(input.value) || 0;
+            input.value = (current + value).toFixed(2);
+            calculateChange();
+        }
+
+        function setExactCash() {
+            const total = currentCart.reduce((acc, item) => acc + item.total, 0);
+            document.getElementById('cashReceivedInput').value = total.toFixed(2);
+            calculateChange();
+        }
+
+        // Cálculo automático do troco em tempo real
+        function calculateChange() {
+            const total = currentCart.reduce((acc, item) => acc + item.total, 0);
+            const received = parseFloat(document.getElementById('cashReceivedInput').value) || 0;
+            const change = received - total;
+
+            const changeBox = document.getElementById('changeBox');
+            const changeDisplay = document.getElementById('changeAmountDisplay');
+            const changeStatus = document.getElementById('changeStatusText');
+            const btnConfirm = document.getElementById('btnConfirmPayment');
+
+            if (received === 0) {
+                changeBox.className = 'bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex items-center justify-between';
+                changeDisplay.className = 'font-mono text-3xl font-extrabold text-amber-700';
+                changeDisplay.textContent = 'R$ 0,00';
+                changeStatus.textContent = 'Informe o valor entregue pelo cliente';
+                btnConfirm.disabled = true;
+            } else if (change < -0.009) {
+                const missing = Math.abs(change);
+                changeBox.className = 'bg-red-50 border-2 border-red-300 rounded-xl p-4 flex items-center justify-between';
+                changeDisplay.className = 'font-mono text-2xl font-extrabold text-red-600';
+                changeDisplay.textContent = `Falta ${formatBRL(missing)}`;
+                changeStatus.textContent = 'Valor recebido menor que o total da compra!';
+                btnConfirm.disabled = true;
+            } else {
+                changeBox.className = 'bg-emerald-50 border-2 border-emerald-400 rounded-xl p-4 flex items-center justify-between';
+                changeDisplay.className = 'font-mono text-3xl font-extrabold text-emerald-700';
+                changeDisplay.textContent = formatBRL(Math.max(0, change));
+                changeStatus.textContent = change > 0 ? 'Devolva este troco ao cliente' : 'Pagamento exato (sem troco)';
+                btnConfirm.disabled = false;
+            }
+        }
+
+        // Processamento final da venda
+        function processPayment() {
+            const total = currentCart.reduce((acc, item) => acc + item.total, 0);
+            const received = selectedPayment === 'dinheiro'
+                ? (parseFloat(document.getElementById('cashReceivedInput').value) || total)
+                : total;
+            const change = Math.max(0, received - total);
+            const errorBox = document.getElementById('paymentErrorBox');
+            const errorTitle = document.getElementById('paymentErrorTitle');
+            const errorAdvice = document.getElementById('paymentErrorAdvice');
+
+            // CENÁRIO DE IMPREVISTO 1: Falta de Troco na Gaveta (nota alta >= 100 com troco >= 50)
+            if (selectedPayment === 'dinheiro' && armedIncident === 'low_change' && change >= 50) {
+                playBeep('error');
+                clearArmedIncident();
+                errorTitle.textContent = `ALERTA DE TROCO INSUFICIENTE NA GAVETA (${formatBRL(change)})`;
+                errorAdvice.innerHTML = `<strong>Procedimento do Operador:</strong> A gaveta não possui cédulas suficientes para devolver ${formatBRL(change)}. Peça licença ao cliente e solicite troca de cédulas ao <strong>Fiscal de Caixa</strong> antes de concluir.`;
+                errorBox.classList.remove('hidden');
+                return;
+            }
+
+            // CENÁRIO DE IMPREVISTO 2: Queda do Sistema PIX
+            if (selectedPayment === 'pix' && armedIncident === 'pix_down') {
+                playBeep('error');
+                clearArmedIncident();
+                errorTitle.textContent = 'FALHA DE COMUNICAÇÃO BANCÁRIA — PIX INDISPONÍVEL (ERRO 503)';
+                errorAdvice.innerHTML = '<strong>Procedimento do Operador:</strong> Informe com cordialidade que o sistema PIX está oscilando no momento e pergunte se o cliente pode pagar via Cartão de Débito/Crédito ou Dinheiro.';
+                errorBox.classList.remove('hidden');
+                return;
+            }
+
+            // CENÁRIO DE IMPREVISTO 3: Cartão Recusado (Saldo Insuficiente ou Senha Inválida)
+            if ((selectedPayment === 'debito' || selectedPayment === 'credito') && (cardSimOutcome !== 'approve' || armedIncident === 'card_declined')) {
+                const isPinError = cardSimOutcome === 'decline_senha';
+                if (armedIncident === 'card_declined') clearArmedIncident();
+
+                closeModal('paymentModal');
+                openModal('saleSuccessModal');
+
+                const procState = document.getElementById('processingState');
+                const compState = document.getElementById('completedState');
+                procState.classList.remove('hidden');
+                compState.classList.add('hidden');
+                document.getElementById('processingTitle').textContent = 'Processando na Maquininha TEF...';
+                document.getElementById('processingSub').textContent = 'Aguardando resposta da operadora do cartão...';
+
+                setTimeout(() => {
+                    playBeep('error');
+                    closeModal('saleSuccessModal');
+                    openModal('paymentModal');
+                    errorTitle.textContent = isPinError
+                        ? 'TRANS. NÃO AUTORIZADA — SENHA INCORRETA (CÓD. 55)'
+                        : 'TRANS. NÃO AUTORIZADA — SALDO INSUFICIENTE (CÓD. 51)';
+                    errorAdvice.innerHTML = '<strong>Procedimento do Operador:</strong> Mantenha a discrição para não constranger o cliente. Informe que a operadora não autorizou e ofereça tentar outro cartão, pagar em Dinheiro/PIX ou chamar o Fiscal (F4) para retirar algum item.';
+                    errorBox.classList.remove('hidden');
+                    // Volta para aprovar na próxima tentativa, a menos que o professor mude novamente
+                    setCardSimulationOutcome('approve');
+                }, 1200);
+                return;
+            }
+
+            errorBox.classList.add('hidden');
+            closeModal('paymentModal');
+            openModal('saleSuccessModal');
+
+            const procState = document.getElementById('processingState');
+            const compState = document.getElementById('completedState');
+
+            // Atualiza dados do resumo final
+            const methodNames = {
+                dinheiro: 'Dinheiro',
+                debito: 'Cartão de Débito',
+                credito: 'Cartão de Crédito',
+                pix: 'PIX Instantâneo'
+            };
+
+            document.getElementById('summaryMethod').textContent = methodNames[selectedPayment];
+            document.getElementById('summaryTotal').textContent = formatBRL(total);
+            document.getElementById('summaryReceived').textContent = formatBRL(received);
+            document.getElementById('summaryChange').textContent = formatBRL(change);
+
+            document.getElementById('summaryCashRow').style.display = selectedPayment === 'dinheiro' ? 'flex' : 'none';
+            document.getElementById('summaryChangeRow').style.display = selectedPayment === 'dinheiro' ? 'flex' : 'none';
+
+            // Simula tempo de comunicação da maquininha/QR Code se não for dinheiro
+            if (selectedPayment !== 'dinheiro') {
+                procState.classList.remove('hidden');
+                compState.classList.add('hidden');
+                document.getElementById('processingTitle').textContent =
+                    selectedPayment === 'pix' ? 'Validando QR Code PIX...' : 'Aguardando Aprovação da Maquininha...';
+
+                setTimeout(() => {
+                    finalizeTransaction(total);
+                    procState.classList.add('hidden');
+                    compState.classList.remove('hidden');
+                }, 1300);
+            } else {
+                procState.classList.add('hidden');
+                compState.classList.remove('hidden');
+                finalizeTransaction(total);
+            }
+        }
+
+        function finalizeTransaction(total) {
+            playBeep('cash');
+            // Registra no fechamento do turno
+            shiftStats.salesCount += 1;
+            shiftStats[selectedPayment] += total;
+        }
+
+        function printReceiptSimulation() {
+            playBeep('success');
+            showFeedback('Comprovante enviado para a impressora térmica do caixa!', 'info');
+            startNewSaleAfterSuccess();
+        }
+
+        function startNewSaleAfterSuccess() {
+            closeModal('saleSuccessModal');
+            saleCounter += 1;
+            currentCart = [];
+            updateUI();
+            focusBarcodeInput();
+        }
+
+        // Reiniciar venda atual (ESC)
+        function requestNewSale() {
+            if (currentCart.length === 0) {
+                focusBarcodeInput();
+                return;
+            }
+            currentCart = [];
+            playBeep('error');
+            updateUI();
+            showFeedback('Venda atual limpa. Caixa pronto para novo atendimento.', 'info');
+            focusBarcodeInput();
+        }
+
+        // 10. RELATÓRIO DE FECHAMENTO DE CAIXA
+        function openShiftReportModal() {
+            const grandTotal = shiftStats.dinheiro + shiftStats.debito + shiftStats.credito + shiftStats.pix;
+            const expectedDrawer = INITIAL_DRAWER_FLOAT + shiftStats.dinheiro;
+
+            document.getElementById('reportSalesCount').textContent = shiftStats.salesCount;
+            document.getElementById('reportCash').textContent = formatBRL(shiftStats.dinheiro);
+            document.getElementById('reportDebit').textContent = formatBRL(shiftStats.debito);
+            document.getElementById('reportCredit').textContent = formatBRL(shiftStats.credito);
+            document.getElementById('reportPix').textContent = formatBRL(shiftStats.pix);
+            document.getElementById('reportGrandTotal').textContent = formatBRL(grandTotal);
+            document.getElementById('reportExpectedDrawer').textContent = formatBRL(expectedDrawer);
+
+            openModal('shiftReportModal');
+        }
+
+        function resetShiftReport() {
+            shiftStats = { salesCount: 0, dinheiro: 0, debito: 0, credito: 0, pix: 0 };
+            openShiftReportModal();
+            showFeedback('Contadores do turno zerados para nova turma/simulação.', 'info');
+        }
+
+        function openTeacherGuideModal() {
+            openModal('teacherGuideModal');
+        }
+
+        // 10.5 SIMULADOR DE IMPREVISTOS E DIVERGÊNCIA DE PREÇO
+        function openIncidentModal() {
+            openModal('incidentModal');
+        }
+
+        function armIncident(type) {
+            armedIncident = type;
+            const banner = document.getElementById('activeScenarioBanner');
+            const text = document.getElementById('activeScenarioText');
+            const dot = document.getElementById('activeIncidentDot');
+
+            const descriptions = {
+                card_declined: 'Cartão Recusado armado! Na próxima tentativa de pagamento com Crédito ou Débito, a maquininha recusará a compra.',
+                barcode_error: 'Código de Barras Não Cadastrado armado! O próximo item bipado acusará erro de leitura/cadastro.',
+                low_change: 'Falta de Troco na Gaveta armado! Se o cliente pagar com nota alta gerando troco >= R$ 50,00, o caixa alertará.',
+                pix_down: 'Queda do Sistema PIX armada! Ao tentar finalizar com PIX, ocorrerá erro de comunicação bancária.'
+            };
+
+            text.textContent = descriptions[type] || 'Cenário ativado.';
+            banner.classList.remove('hidden');
+            dot.classList.remove('hidden');
+            closeModal('incidentModal');
+            showFeedback('Cenário de imprevisto ativado para a simulação!', 'warning');
+        }
+
+        function clearArmedIncident() {
+            armedIncident = null;
+            document.getElementById('activeScenarioBanner').classList.add('hidden');
+            document.getElementById('activeIncidentDot').classList.add('hidden');
+        }
+
+        function triggerShelfPriceDiscrepancy() {
+            closeModal('incidentModal');
+            if (currentCart.length === 0) {
+                playBeep('error');
+                showFeedback('Bipe pelo menos 1 produto no cupom antes de simular a Divergência de Preço na Gôndola!', 'warning');
+                return;
+            }
+
+            const select = document.getElementById('adjustItemSelect');
+            select.innerHTML = currentCart.map((item, idx) => `
+                <option value="${item.id}">
+                    Item #${idx + 1} - ${item.name} (${formatBRL(item.total)})
+                </option>
+            `).join('');
+
+            document.getElementById('adjustPinInput').value = '';
+            document.getElementById('adjustPinError').classList.add('hidden');
+            openModal('priceAdjustModal');
+            setTimeout(() => document.getElementById('adjustPinInput').focus(), 100);
+        }
+
+        function confirmPriceAdjustment(event) {
+            event.preventDefault();
+            const pin = document.getElementById('adjustPinInput').value.trim();
+            const itemId = document.getElementById('adjustItemSelect').value;
+            const discount = parseFloat(document.getElementById('adjustDiscountInput').value) || 0;
+
+            if (pin !== SUPERVISOR_PIN) {
+                playBeep('error');
+                document.getElementById('adjustPinError').classList.remove('hidden');
+                return;
+            }
+
+            const item = currentCart.find(i => i.id == itemId);
+            if (item && discount > 0) {
+                const appliedDiscount = Math.min(discount, item.total - 0.05);
+                item.total = Math.max(0.05, item.total - appliedDiscount);
+                item.name = `${item.name} (Desc. Gôndola -${formatBRL(appliedDiscount)})`;
+                playBeep('success');
+                closeModal('priceAdjustModal');
+                showFeedback(`Desconto de ${formatBRL(appliedDiscount)} autorizado pelo Fiscal por divergência na gôndola!`, 'info');
+                updateUI(item);
+                focusBarcodeInput();
+            }
+        }
+
+        // 11. UTILITÁRIOS DE MODAL, FEEDBACK E ATALHOS DE TECLADO
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            focusBarcodeInput();
+        }
+
+        function focusBarcodeInput() {
+            const input = document.getElementById('barcodeInput');
+            if (input) input.focus();
+        }
+
+        function showFeedback(message, type = 'info') {
+            const banner = document.getElementById('feedbackBanner');
+            banner.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-amber-100', 'text-amber-800', 'bg-blue-100', 'text-blue-800');
+
+            if (type === 'error') {
+                banner.classList.add('bg-red-100', 'text-red-800');
+                banner.innerHTML = `<i class="ph-bold ph-warning-circle text-lg"></i> <span>${message}</span>`;
+            } else if (type === 'warning') {
+                banner.classList.add('bg-amber-100', 'text-amber-800');
+                banner.innerHTML = `<i class="ph-bold ph-info text-lg"></i> <span>${message}</span>`;
+            } else {
+                banner.classList.add('bg-blue-100', 'text-blue-800');
+                banner.innerHTML = `<i class="ph-bold ph-check-circle text-lg"></i> <span>${message}</span>`;
+            }
+        }
+
+        function hideFeedback() {
+            document.getElementById('feedbackBanner').classList.add('hidden');
+        }
+
+        // Atalhos globais de teclado para simular um teclado reduzido de PDV
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F2') {
+                e.preventDefault();
+                if (!document.getElementById('btnCheckout').disabled) {
+                    openPaymentModal();
+                }
+            } else if (e.key === 'F4') {
+                e.preventDefault();
+                if (!document.getElementById('btnCancelItem').disabled) {
+                    openCancelItemModal();
+                }
+            } else if (e.key === 'F8') {
+                // Alterna rapidamente entre Aprovar / Recusar na maquininha durante o pagamento
+                if (!document.getElementById('paymentModal').classList.contains('hidden')) {
+                    e.preventDefault();
+                    const next = cardSimOutcome === 'approve' ? 'decline_saldo' : 'approve';
+                    setCardSimulationOutcome(next);
+                }
+            } else if (e.key === 'Escape') {
+                // Fecha modais abertos ou limpa venda
+                const modals = ['paymentModal', 'cancelItemModal', 'shiftReportModal', 'teacherGuideModal', 'newProductModal', 'incidentModal', 'priceAdjustModal'];
+                let closedAny = false;
+                modals.forEach(m => {
+                    if (!document.getElementById(m).classList.contains('hidden')) {
+                        closeModal(m);
+                        closedAny = true;
+                    }
+                });
+                if (!closedAny && document.getElementById('saleSuccessModal').classList.contains('hidden')) {
+                    requestNewSale();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
